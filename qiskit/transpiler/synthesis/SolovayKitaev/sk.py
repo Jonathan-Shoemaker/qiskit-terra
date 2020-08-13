@@ -22,9 +22,17 @@ class sk():
 		self.orig_names_to_gates = {}
 		modified_set = []
 
+		# used to make sure we do not add in the adjoints twice
+		already_added = set()
+
 		for gate in instruction_set: 
 			self.orig_names_to_gates[gate[0]] = gate[1]
 			# first check if it is hermitiatian
+
+			# was already added in along with the adjoint
+			if gate[0] in already_added:
+				continue
+
 			is_hermitian = False
 
 			# hermitian if dist to adjoint is small enough
@@ -37,6 +45,19 @@ class sk():
 				# append an exclmation point to the name to signify it is a new gate that 
 				#   just corresponds to a version of the gate
 				modified_set.append((gate[0] + "!", adj_version))
+			if not is_hermitian:
+				# find the adjoiint and then add it in 
+				mindist = 100000
+				my_adjoint = None
+				for poss_adjoint in instruction_set:
+					cdist = self.matdist(poss_adjoint[1], gate[1].getH())
+					if cdist < mindist:
+						mindist = cdist
+						my_adjoint = poss_adjoint[0]
+				already_added.add(my_adjoint)
+				modified_set.append((my_adjoint, modversion.getH()))
+
+
 			# print('Inside version of ', gate[0], '\n', modversion)
 
 		self.base_gates = []
@@ -122,7 +143,7 @@ class sk():
 	def put_into_su2(self, gate):
 		mat = np.multiply(gate, 1.0/LA.det(gate) ** 0.5)
 		if mat.item(0,0).real < 0:
-			mat = np.multiply(gate, -1.0)
+			mat = np.multiply(mat, -1.0)
 		return mat
 
 	def build_tree(self, objects, axis = 0, index = 1):
@@ -186,7 +207,9 @@ class sk():
 
 	def mult_named_gates(self, gates):
 
-		#mostly used for checking the result product
+		# mostly used for checking the result product in testing
+		# allows you to get the matrix corresponding to product of 
+		#  (non-normalized) output sequences
 		mat_list = []
 		for item in gates:
 			mat_list.append(self.orig_names_to_gates[item])
@@ -311,10 +334,15 @@ class sk():
 		# 	if matdist(tempo, gate) < allowed_error:
 		# 		return tempo
 		# 	curdep = curdep+1
+
+		gate = self.put_into_su2(gate)
+
 		recursive_result = self.recurse(gate, depth)
 
+		# print()
+
 		nprod = self.mult_matrix(self.get_gates(recursive_result))
-		print('Inner Dist: ', self.matdist(gate, nprod), '\n', nprod)
+		# print('Inner Dist: ', self.matdist(gate, nprod), '\n', nprod)
 
 		# modify this back to something we can return
 		remove_cancels = []
