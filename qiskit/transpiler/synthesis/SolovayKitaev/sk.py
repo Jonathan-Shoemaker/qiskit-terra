@@ -291,14 +291,16 @@ class sk():
 			res.append(self.base_gates[gate])
 		return res
 
-	def recurse(self, gate, depth):
+	def recurse(self, gate, depth, cache=None):
 
 		if depth == 0:
 			retval =  self.basic_approx(gate)
 
 			return retval
 
-		gate_prev = self.recurse(gate, depth-1)
+		gate_prev = cache
+		if cache is None:
+			gate_prev = self.recurse(gate, depth-1)
 
 		#figure out how to do below
 		tot_list = []
@@ -325,21 +327,25 @@ class sk():
 
 		return gate_approx
 
-	def run(self, gate, depth):
-		# run on the unitary gate "gate"
-		# calculate the needed depth (n) and then run
-		# curdep = 0
-		# while True:
-		# 	tempo = self.recurse(gate, curdep)
-		# 	if matdist(tempo, gate) < allowed_error:
-		# 		return tempo
-		# 	curdep = curdep+1
-
+	def run(self, gate, depth=-1, epsilon=None):
+		# wants: maybe run on an error epsilon as well
 		gate = self.put_into_su2(gate)
 
-		recursive_result = self.recurse(gate, depth)
-
-		# print()
+		recursive_result = None
+		if depth == -1:
+			if epsilon is None:
+				# this should actually raise an error
+				pass
+			cur_depth = 0
+			cur_res = self.recurse(gate, 0)
+			while self.matdist(gate, self.mult_matrix(self.get_gates(cur_res))) > epsilon:
+				cur_depth = cur_depth+1
+				# pass in previous approximation so we don't have to do calculation twice
+				cur_res = self.recurse(gate, cur_depth, cur_res)
+			recursive_result = cur_res
+		else:
+			# case when specified depth is not -1
+			recursive_result = self.recurse(gate, depth)
 
 		nprod = self.mult_matrix(self.get_gates(recursive_result))
 		# print('Inner Dist: ', self.matdist(gate, nprod), '\n', nprod)
