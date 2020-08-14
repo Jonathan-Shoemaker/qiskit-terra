@@ -16,3 +16,4 @@
 
 
 from .graysynth import graysynth, cnot_synth
+from .SolovayKitaev.sk import SolovayKitaev

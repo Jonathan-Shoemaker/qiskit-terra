@@ -93,7 +93,7 @@ class SolovayKitaev():
             self.adjoints[gate[0]] = my_adjoint
 
         # specify max number of sequences allowed to be in the basic approx group
-        # larger is better but slower. From testing so far the below number seems
+        # larger is better but slower. For small sets the below number seems
         #   to suffice for getting basic approx to be dense in SU(2)
         allowed_size = 1000000
 
@@ -130,8 +130,6 @@ class SolovayKitaev():
         self.base_sequences.append(["id"])
         self.adjoints["id"] = "id"
 
-        print("Total LENGTH: ", len(self.base_gates))
-
         #objects are stored as 4-d point, then matrix
         obj_list = []
         cur_string_map = {}
@@ -156,8 +154,6 @@ class SolovayKitaev():
         # initialize kdtree size so we can use binary tree in array trick
         self.kdtree = [None] * (len(self.base_gates)*2+5)
         self.build_tree(obj_list)
-
-        print('Tree has been built')
 
     def put_into_su2(self, gate):
         """Cast an arbitrary unitary into SU(2)
@@ -193,6 +189,9 @@ class SolovayKitaev():
         Store the closest point seen so far.
         Often, one side of the recursion will be such that all points are further away
         from the goal than the closest point seen so far. In that case, do not recurse
+
+        This is certainly the bottleneck of the whole process. Changing the data structure
+        might be worth considering.
         """
 
         # best sequence encountered so far
@@ -204,7 +203,6 @@ class SolovayKitaev():
                 (pt1[2]-pt2[2])**2 + (pt1[3]-pt2[3])**2
 
         def recurse_kd(index, point, axis=0):
-            # print(node, point)
             if index >= len(self.kdtree):
                 return
             node = self.kdtree[index]
@@ -284,7 +282,7 @@ class SolovayKitaev():
 
         citem = gate.item(0, 0).real
         if abs(citem) > 1.000000000001:
-            print('Off by A ton')
+            pass # this is indicative of error elsewhere
         if citem < -1.0:
             citem = -1.0
         if citem > 1.0:
@@ -415,6 +413,7 @@ class SolovayKitaev():
                 cur_depth = cur_depth+1
                 # pass in previous approximation so we don't have to do calculation twice
                 cur_res = self.recurse(gate, cur_depth, cur_res)
+
             recursive_result = cur_res
         else:
             # case when specified depth is not -1
